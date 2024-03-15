@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:latest
+    container_name: database
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=q123
+      - POSTGRES_DB=allie
+    restart: always
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+
+  allie:
+    container_name: allie
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports: 
+      - "8081:8081"
+    volumes:
+      - allie:/usr/src/allie/
+    depends_on:
+      - database
+    networks:
+      - backend
+
+volumes:
+  allie:
+  postgres:
+
+networks:
+  backend:
+    driver: bridge
