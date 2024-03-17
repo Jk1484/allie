@@ -9,8 +9,10 @@ import (
 var Module = fx.Provide(New)
 
 type Service interface {
-	GetMagesExcept(username string) []mage.Mage
 	GetAllMages() []mage.Mage
+	GetMagesExcept(username string) []mage.Mage
+	GetAllMagesNames() []string
+	GetMagesNamesExcept(username string) []string
 	RemoveMage(username string)
 	AddMage(m mage.Mage)
 	GetByUsername(username string) *mage.Mage
@@ -45,6 +47,23 @@ func (s *service) GetMagesExcept(username string) []mage.Mage {
 	}
 
 	return mages
+}
+
+func (s *service) GetAllMagesNames() []string {
+	return s.GetMagesNamesExcept("")
+}
+
+func (s *service) GetMagesNamesExcept(username string) []string {
+	magesNames := make([]string, 0, len(s.Mages))
+	for _, v := range s.Mages {
+		if v.Username == username {
+			continue
+		}
+
+		magesNames = append(magesNames, v.Username)
+	}
+
+	return magesNames
 }
 
 func (s *service) RemoveMage(username string) {

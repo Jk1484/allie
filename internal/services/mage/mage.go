@@ -17,7 +17,7 @@ var Module = fx.Provide(New)
 type Service interface {
 	Create(m Mage) error
 	GetByUsername(string) (*Mage, error)
-	ReduceHPByUsername(username string) error
+	UpdateHPByUsername(username string, newHP int) error
 }
 
 type service struct {
@@ -100,6 +100,6 @@ func (s *service) GetByUsername(username string) (*Mage, error) {
 	return &m, nil
 }
 
-func (s *service) ReduceHPByUsername(username string) error {
-	return s.mageRepository.ReduceHPByUsername(username)
+func (s *service) UpdateHPByUsername(username string, newHP int) error {
+	return s.mageRepository.UpdateHPByUsername(username, newHP)
 }

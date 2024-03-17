@@ -11,7 +11,7 @@ var Module = fx.Provide(New)
 type Repository interface {
 	Create(m Mage) error
 	GetByUsername(username string) (*Mage, error)
-	ReduceHPByUsername(username string) error
+	UpdateHPByUsername(username string, newHP int) error
 }
 
 type repository struct {
@@ -64,15 +64,15 @@ func (r *repository) GetByUsername(username string) (*Mage, error) {
 	return &m, nil
 }
 
-func (r *repository) ReduceHPByUsername(username string) error {
+func (r *repository) UpdateHPByUsername(username string, newHP int) error {
 	query := `
 		UPDATE mages
-		SET hp = hp-10
-		WHERE username = $1
+		SET hp = $1
+		WHERE username = $2
 	`
 
 	// todo: check if affected
-	_, err := r.db.Connection().Exec(query, username)
+	_, err := r.db.Connection().Exec(query, newHP, username)
 
 	return err
 }

@@ -49,14 +49,8 @@ func (h *handlers) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	arenaMages := h.arenaService.GetAllMages()
-	arenaMagesNames := make([]string, 0, len(arenaMages))
-	for _, v := range arenaMages {
-		arenaMagesNames = append(arenaMagesNames, v.Username)
-	}
-	conn.WriteJSON(map[string]interface{}{"type": "mages", "mages": arenaMagesNames})
+	conn.WriteJSON(map[string]interface{}{"type": "mages", "mages": h.arenaService.GetAllMagesNames()})
 
-	var mageJoinAttempt mage.Mage
 	var activeJoinedMage *mage.Mage
 
 	for {
@@ -68,95 +62,11 @@ func (h *handlers) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 		switch msg["type"] {
 		case "register":
-			mageJoinAttempt.Username = msg["username"]
-			mageJoinAttempt.Password, err = HashPassword(msg["password"])
-			if err != nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-				return
-			}
-
-			err := h.mageService.Create(mageJoinAttempt)
-			if err != nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-				continue
-			}
-
-			conn.WriteJSON(map[string]string{"type": "response", "message": "ok"})
+			h.handleRegister(msg, conn)
 		case "join":
-			mageJoinAttempt.Username = msg["username"]
-			mageJoinAttempt.Password = msg["password"]
-
-			m, err := h.mageService.GetByUsername(mageJoinAttempt.Username)
-			if err != nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-				continue
-			}
-
-			if CheckPasswordHash(mageJoinAttempt.Password, m.Password) {
-				mageJoinAttempt.ID = m.ID
-				mageJoinAttempt.HP = m.HP
-				mageJoinAttempt.Conn = conn
-
-				if activeJoinedMage != nil {
-					h.arenaService.RemoveMage(activeJoinedMage.Username)
-					arenaMages := h.arenaService.GetMagesExcept(activeJoinedMage.Username)
-					for _, v := range arenaMages {
-						v.Conn.WriteJSON(map[string]interface{}{"type": "left", "username": activeJoinedMage.Username})
-					}
-				}
-
-				h.arenaService.AddMage(mageJoinAttempt)
-
-				// mage joined the arena
-				x := mageJoinAttempt
-				activeJoinedMage = &x
-
-				arenaMages := h.arenaService.GetMagesExcept(activeJoinedMage.Username)
-				arenaMagesNames := make([]string, 0, len(arenaMages))
-				for _, v := range arenaMages {
-					v.Conn.WriteJSON(map[string]interface{}{"type": "joined", "username": activeJoinedMage.Username})
-					arenaMagesNames = append(arenaMagesNames, v.Username)
-				}
-
-				conn.WriteJSON(map[string]interface{}{"type": "health", "hp": activeJoinedMage.HP, "mages": arenaMagesNames})
-			} else {
-				conn.WriteJSON(map[string]string{"type": "error", "message": "Invalid username/password"})
-				continue
-			}
+			h.handleJoin(&activeJoinedMage, msg, conn)
 		case "fireball":
-			if activeJoinedMage == nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": "not joined to arena"})
-				continue
-			}
-
-			target := msg["target"]
-
-			targetMage := h.arenaService.GetByUsername(target)
-			if targetMage == nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": "no target found"})
-				continue
-			}
-
-			err = h.mageService.ReduceHPByUsername(target)
-			if err != nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-				continue
-			}
-
-			targetMage.HP -= 10
-			targetMage.Conn.WriteJSON(map[string]interface{}{"type": "attack", "from": activeJoinedMage.Username, "currentHP": targetMage.HP})
-
-			if targetMage.HP <= 0 {
-				targetMage.Conn.WriteJSON(map[string]interface{}{"type": "died", "by": activeJoinedMage.Username, "message": "busted"})
-
-				h.arenaService.RemoveMage(targetMage.Username)
-				arenaMages := h.arenaService.GetMagesExcept(targetMage.Username)
-				for _, v := range arenaMages {
-					v.Conn.WriteJSON(map[string]interface{}{"type": "died", "username": targetMage.Username, "killer": activeJoinedMage.Username})
-				}
-
-				targetMage.Conn.Close()
-			}
+			h.handleFireball(&activeJoinedMage, msg, conn)
 		}
 	}
 
@@ -165,9 +75,120 @@ func (h *handlers) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.arenaService.RemoveMage(activeJoinedMage.Username)
-	arenaMages = h.arenaService.GetMagesExcept(activeJoinedMage.Username)
+	arenaMages := h.arenaService.GetMagesExcept(activeJoinedMage.Username)
 	for _, v := range arenaMages {
 		v.Conn.WriteJSON(map[string]interface{}{"type": "left", "username": activeJoinedMage.Username})
+	}
+}
+
+func (h *handlers) handleRegister(msg map[string]string, conn *websocket.Conn) {
+	var err error
+	var mageJoinAttempt mage.Mage
+
+	mageJoinAttempt.Username = msg["username"]
+	mageJoinAttempt.Password, err = HashPassword(msg["password"])
+	if err != nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		return
+	}
+
+	err = h.mageService.Create(mageJoinAttempt)
+	if err != nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		return
+	}
+
+	conn.WriteJSON(map[string]string{"type": "response", "message": "ok"})
+}
+
+func (h *handlers) handleJoin(activeJoinedMage **mage.Mage, msg map[string]string, conn *websocket.Conn) {
+	var mageJoinAttempt mage.Mage
+
+	mageJoinAttempt.Username = msg["username"]
+	mageJoinAttempt.Password = msg["password"]
+
+	m, err := h.mageService.GetByUsername(mageJoinAttempt.Username)
+	if err != nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		return
+	}
+
+	if !CheckPasswordHash(mageJoinAttempt.Password, m.Password) {
+		conn.WriteJSON(map[string]string{"type": "error", "message": "Invalid username/password"})
+		return
+	}
+
+	if m.HP <= 0 {
+		m.HP = 100
+
+		if err = h.mageService.UpdateHPByUsername(m.Username, m.HP); err != nil {
+			conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+			return
+		}
+	}
+
+	mageJoinAttempt.ID = m.ID
+	mageJoinAttempt.HP = m.HP
+	mageJoinAttempt.Conn = conn
+
+	if *activeJoinedMage != nil {
+		h.arenaService.RemoveMage((*activeJoinedMage).Username)
+		arenaMages := h.arenaService.GetMagesExcept((*activeJoinedMage).Username)
+		for _, v := range arenaMages {
+			v.Conn.WriteJSON(map[string]interface{}{"type": "left", "username": (*activeJoinedMage).Username})
+		}
+	}
+
+	h.arenaService.AddMage(mageJoinAttempt)
+
+	// mage joined the arena
+	x := mageJoinAttempt
+	*activeJoinedMage = &x
+
+	arenaMages := h.arenaService.GetMagesExcept((*activeJoinedMage).Username)
+	arenaMagesNames := make([]string, 0, len(arenaMages))
+	for _, v := range arenaMages {
+		v.Conn.WriteJSON(map[string]interface{}{"type": "joined", "username": (*activeJoinedMage).Username})
+		arenaMagesNames = append(arenaMagesNames, v.Username)
+	}
+
+	conn.WriteJSON(map[string]interface{}{"type": "health", "hp": (*activeJoinedMage).HP, "mages": arenaMagesNames})
+}
+
+func (h *handlers) handleFireball(activeJoinedMage **mage.Mage, msg map[string]string, conn *websocket.Conn) {
+	if activeJoinedMage == nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": "not joined to arena"})
+		return
+	}
+
+	target := msg["target"]
+
+	targetMage := h.arenaService.GetByUsername(target)
+	if targetMage == nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": "no target found"})
+		return
+	}
+
+	targetMage.HP -= 10
+
+	err := h.mageService.UpdateHPByUsername(target, targetMage.HP)
+	if err != nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		return
+	}
+
+	targetMage.Conn.WriteJSON(map[string]interface{}{"type": "attack", "from": (*activeJoinedMage).Username, "currentHP": targetMage.HP})
+
+	if targetMage.HP <= 0 {
+		targetMage.Conn.WriteJSON(map[string]interface{}{"type": "died", "by": (*activeJoinedMage).Username, "message": "busted"})
+
+		h.arenaService.RemoveMage(targetMage.Username)
+		arenaMages := h.arenaService.GetMagesExcept(targetMage.Username)
+		for _, v := range arenaMages {
+			v.Conn.WriteJSON(map[string]interface{}{"type": "died", "username": targetMage.Username, "killer": (*activeJoinedMage).Username})
+		}
+
+		targetMage.Conn.Close()
 	}
 }
 
