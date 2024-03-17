@@ -15,13 +15,15 @@ var Module = fx.Options(
 )
 
 type Database interface {
-	Connection() *sql.DB
 	CloseConnection() error
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Exec(query string, args ...any) (sql.Result, error)
 }
 
 type database struct {
 	db      *sql.DB
 	configs config.Configs
+	limiter chan struct{} // limit amount of simultaneous calls to db
 }
 
 type Params struct {
@@ -34,6 +36,7 @@ func New(p Params) Database {
 	return &database{
 		db:      p.DB,
 		configs: p.Configs,
+		limiter: make(chan struct{}, 10),
 	}
 }
 
@@ -55,10 +58,26 @@ func connect(cfg config.Configs) *sql.DB {
 	return db
 }
 
-func (d *database) Connection() *sql.DB {
-	return d.db
-}
-
 func (d *database) CloseConnection() error {
 	return d.db.Close()
+}
+
+func (d *database) QueryRow(query string, args ...interface{}) *sql.Row {
+	d.Acquire()
+	defer d.Release()
+	return d.db.QueryRow(query, args...)
+}
+
+func (d *database) Exec(query string, args ...any) (sql.Result, error) {
+	d.Acquire()
+	defer d.Release()
+	return d.db.Exec(query, args...)
+}
+
+func (d *database) Acquire() {
+	d.limiter <- struct{}{}
+}
+
+func (d *database) Release() {
+	<-d.limiter
 }

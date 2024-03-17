@@ -42,7 +42,7 @@ func (r *repository) Create(m Mage) error {
 		VALUES($1, $2)
 	`
 
-	_, err := r.db.Connection().Exec(query, m.Username, m.Password)
+	_, err := r.db.Exec(query, m.Username, m.Password)
 
 	return err
 }
@@ -56,7 +56,7 @@ func (r *repository) GetByUsername(username string) (*Mage, error) {
 		WHERE username = $1
 	`
 
-	err := r.db.Connection().QueryRow(query, username).Scan(&m.ID, &m.Username, &m.Password, &m.HP)
+	err := r.db.QueryRow(query, username).Scan(&m.ID, &m.Username, &m.Password, &m.HP)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (r *repository) UpdateHPByUsername(username string, newHP int) error {
 	`
 
 	// todo: check if affected
-	_, err := r.db.Connection().Exec(query, newHP, username)
+	_, err := r.db.Exec(query, newHP, username)
 
 	return err
 }
