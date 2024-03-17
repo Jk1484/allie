@@ -12,7 +12,6 @@ import (
 
 var Module = fx.Options(
 	fx.Provide(New),
-	fx.Provide(connect),
 )
 
 type Database interface {
@@ -31,12 +30,11 @@ type Params struct {
 	fx.In
 	Lifecycle fx.Lifecycle
 	Configs   config.Configs
-	DB        *sql.DB
 }
 
 func New(p Params) Database {
 	newDB := &database{
-		db:      p.DB,
+		db:      connect(p.Configs),
 		configs: p.Configs,
 		limiter: make(chan struct{}, 10),
 	}
