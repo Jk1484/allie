@@ -6,7 +6,7 @@ ADD . /allie
 
 WORKDIR /allie
 
-RUN go build -o allie ./cmd
+RUN go build -o allie ./cmd/app
 
 FROM alpine:latest
 COPY --from=build /allie /allie

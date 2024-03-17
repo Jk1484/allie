@@ -1,8 +1,8 @@
 package services
 
 import (
-	"allie/pkg/services/arena"
-	"allie/pkg/services/mage"
+	"allie/internal/services/arena"
+	"allie/internal/services/mage"
 
 	"go.uber.org/fx"
 )

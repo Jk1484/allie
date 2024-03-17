@@ -1,7 +1,7 @@
 package arena
 
 import (
-	"allie/pkg/services/mage"
+	"allie/internal/services/mage"
 
 	"go.uber.org/fx"
 )

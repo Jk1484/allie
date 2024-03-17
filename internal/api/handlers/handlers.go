@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"allie/internal/services/arena"
+	"allie/internal/services/mage"
 	"allie/pkg/logger"
-	"allie/pkg/services/arena"
-	"allie/pkg/services/mage"
 	"log"
 	"net/http"
 

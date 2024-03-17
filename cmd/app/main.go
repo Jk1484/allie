@@ -1,13 +1,13 @@
 package main
 
 import (
-	"allie/configs"
-	"allie/pkg/db"
-	"allie/pkg/handlers"
-	"allie/pkg/handlers/server"
+	"allie/internal/api/handlers"
+	"allie/internal/api/server"
+	"allie/internal/db"
+	"allie/internal/repositories"
+	"allie/internal/services"
+	"allie/pkg/config"
 	"allie/pkg/logger"
-	"allie/pkg/repositories"
-	"allie/pkg/services"
 
 	"go.uber.org/fx"
 )
@@ -15,7 +15,7 @@ import (
 func main() {
 	fx.New(
 		fx.Options(
-			configs.Module,
+			config.Module,
 			logger.Module,
 			db.Module,
 			repositories.Module,

@@ -1,7 +1,7 @@
 package server
 
 import (
-	"allie/pkg/handlers"
+	"allie/internal/api/handlers"
 	"context"
 	"net/http"
 

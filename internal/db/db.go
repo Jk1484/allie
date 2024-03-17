@@ -1,7 +1,7 @@
 package db
 
 import (
-	"allie/configs"
+	"allie/pkg/config"
 	"database/sql"
 	"fmt"
 
@@ -21,12 +21,12 @@ type Database interface {
 
 type database struct {
 	db      *sql.DB
-	configs configs.Configs
+	configs config.Configs
 }
 
 type Params struct {
 	fx.In
-	Configs configs.Configs
+	Configs config.Configs
 	DB      *sql.DB
 }
 
@@ -37,7 +37,7 @@ func New(p Params) Database {
 	}
 }
 
-func connect(cfg configs.Configs) *sql.DB {
+func connect(cfg config.Configs) *sql.DB {
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Peek().Database.Host, cfg.Peek().Database.Port, cfg.Peek().Database.User, cfg.Peek().Database.Password, cfg.Peek().Database.Name)
 	db, err := sql.Open("postgres", psqlInfo)

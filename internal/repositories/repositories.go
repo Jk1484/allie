@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"allie/pkg/repositories/mage"
+	"allie/internal/repositories/mage"
 
 	"go.uber.org/fx"
 )

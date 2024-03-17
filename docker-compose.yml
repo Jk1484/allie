@@ -13,9 +13,14 @@ services:
       - "5433:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
 
   allie:
     container_name: allie
@@ -27,7 +32,8 @@ services:
     volumes:
       - allie:/usr/src/allie/
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     networks:
       - backend
 

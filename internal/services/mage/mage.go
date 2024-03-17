@@ -1,8 +1,8 @@
 package mage
 
 import (
-	"allie/pkg/repositories/mage"
-	"allie/pkg/services/utils"
+	"allie/internal/repositories/mage"
+	"allie/internal/services/utils"
 	"database/sql"
 	"errors"
 	"strings"

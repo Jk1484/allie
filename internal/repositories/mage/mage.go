@@ -1,7 +1,7 @@
 package mage
 
 import (
-	"allie/pkg/db"
+	"allie/internal/db"
 
 	"go.uber.org/fx"
 )
