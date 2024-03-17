@@ -2,6 +2,7 @@ package db
 
 import (
 	"allie/pkg/config"
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -15,7 +16,7 @@ var Module = fx.Options(
 )
 
 type Database interface {
-	CloseConnection() error
+	Close() error
 	QueryRow(query string, args ...interface{}) *sql.Row
 	Exec(query string, args ...any) (sql.Result, error)
 }
@@ -28,16 +29,27 @@ type database struct {
 
 type Params struct {
 	fx.In
-	Configs config.Configs
-	DB      *sql.DB
+	Lifecycle fx.Lifecycle
+	Configs   config.Configs
+	DB        *sql.DB
 }
 
 func New(p Params) Database {
-	return &database{
+	newDB := &database{
 		db:      p.DB,
 		configs: p.Configs,
 		limiter: make(chan struct{}, 10),
 	}
+
+	p.Lifecycle.Append(
+		fx.Hook{
+			OnStop: func(ctx context.Context) error {
+				return newDB.Close()
+			},
+		},
+	)
+
+	return newDB
 }
 
 func connect(cfg config.Configs) *sql.DB {
@@ -58,7 +70,7 @@ func connect(cfg config.Configs) *sql.DB {
 	return db
 }
 
-func (d *database) CloseConnection() error {
+func (d *database) Close() error {
 	return d.db.Close()
 }
 
